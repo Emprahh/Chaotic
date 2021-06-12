@@ -1,6 +1,6 @@
 # Chaotic-Attractors
 
-Visualizer for Chaotis Attractors.
+Visualizer for Chaotic Attractors.
  
 -Choose from various Attractors and Maps</br>
 -Change particle behavior between different Attractors on the fly</br>
