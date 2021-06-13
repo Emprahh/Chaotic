@@ -7,8 +7,15 @@ var colorOptions = document.forms['colorOption'].elements['style'];
 var colorDropDown = document.forms['colorOption'].elements['rgbColors'];
 var constantSliders = document.getElementsByClassName('slider');
 var simDropDown = document.getElementById('simType');
+var secondaryPartsNum = document.getElementById('secondaryParticles');
+var sliderCont = document.getElementById('slideContainer');
+var resetButton = document.getElementById('resetSim');
 
-const supportedSims = ["Lorenz", "TSUCS1", "Popcorn2", "Mix"];
+const Lorenz = [10, 28, 8/3];
+const TSUCS1 = [40, 0.833, 0.5, 0.65, 20];
+const Popcorn2 = [0.05, 3];
+const MIX = [10, 28, 8/3];
+const supportedSims = [["Lorenz", Lorenz], ["TSUCS1", TSUCS1], ["Popcorn2", Popcorn2], ["Mix", MIX]];
 
 const CSS_COLOR_NAMES = [
   "AliceBlue",
@@ -168,22 +175,52 @@ for (var i = 0; i < styleOptions.length; i++) {
 }
 
 for (var i = 0; i < CSS_COLOR_NAMES.length; i++) {
-  colorDropDown.innerHTML += "<option value='" + CSS_COLOR_NAMES[i] +  "'>" + CSS_COLOR_NAMES[i] + "</option>"
+  colorDropDown[0].innerHTML += "<option value='" + CSS_COLOR_NAMES[i] +  "'>" + CSS_COLOR_NAMES[i] + "</option>"
+  colorDropDown[1].innerHTML += "<option value='" + CSS_COLOR_NAMES[i] +  "'>" + CSS_COLOR_NAMES[i] + "</option>"
 }
 
-colorDropDown.onchange = function(){
-  userOptions.color = colorDropDown.value;
+colorDropDown[0].onchange = function(){
+  if (userOptions.color !== "rainbow" && userOptions.color !== "ppcol") {
+    userOptions.color = colorDropDown[0].value;
+  }
 }
 
 for (var i = 0; i < supportedSims.length; i++){
-  simDropDown.innerHTML += "<option value='" + supportedSims[i] +  "'>" + supportedSims[i] + "</option>"
+  simDropDown.innerHTML += "<option value='" + supportedSims[i][0] +  "'>" + supportedSims[i][0] + "</option>"
 }
 
-simDropDown.onchange = function(){
+function genSliders(){
   userOptions.attractor = simDropDown.value;
+  sliderCont.innerHTML = "";
+  for (var i = 0; i < supportedSims.length; i++){
+    if (simDropDown.value === supportedSims[i][0]){
+      var simConsts = supportedSims[i][1];
+    }
+  }
+  for (var i = 0; i < simConsts.length; i++){
+    sliderCont.innerHTML += '<input type="range" min="' + simConsts[i]/10 + '" max="' + (simConsts[i] * 2) + '" value="' + simConsts[i] + '" step ="' + simConsts[i]/10 +'" class="slider" id="' + i + '"></br>'
+  }
+  var constantSliders = document.getElementsByClassName('slider');
+
+  for (var i = 0; i < constantSliders.length; i++){
+    constantSliders[i].oninput = function(){
+      simConsts[this.id] = this.value;
+    }
+  }
 }
 
+simDropDown.addEventListener('change', function(){
+  genSliders();
+})
 
+resetButton.addEventListener('click', function(){
+  particles = [];
+  for (var i = 0; i < 100; i++){
+    particles.push(new particle());
+  }
+  resetSim();
+  genSliders();
+});
 
 for (var i = 0; i < colorOptions.length; i++) {
     colorOptions[i].onclick = function() {
@@ -191,7 +228,7 @@ for (var i = 0; i < colorOptions.length; i++) {
           userOptions.color = this.id;
         }
         else {
-          userOptions.color = colorDropDown.value;
+          userOptions.color = colorDropDown[0].value;
         }
     };
 }
@@ -213,6 +250,20 @@ for (var i = 0; i < constantSliders.length; i++){
 }
 
 
+
+secondaryPartsNum.addEventListener('click', function(){
+  if (this.value > userOptions.secondaryParts.length){
+    var tmpParticlePointer = particles[Math.floor(Math.random() * particles.length)];
+    tmpParticlePointer.secColor = true;
+    userOptions.secondaryParts.push(tmpParticlePointer);
+  }
+  else if (this.value < userOptions.secondaryParts.length){
+    var tmpParticlePointer = userOptions.secondaryParts[0];
+    tmpParticlePointer.secColor = false;
+    userOptions.secondaryParts.shift();
+  }
+});
+
 canvas.width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
 canvas.height = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
 
@@ -223,7 +274,6 @@ function random_rgba() {
 
 function isColor(strColor){
   var s = new Option().style;
-  //console.log(s.color);
   s.color = strColor;
   return true;
 }
@@ -255,6 +305,20 @@ function colorCycle(){
   return 'rgb(' + r + ', ' + g + ', ' + b + ")";
 }
 
+class sim {
+  constructor(name, consts){
+    this.name = name;
+    this.consts = consts;
+    this.constDefault = (function() {
+      var defaultArray = [];
+      for (var i of consts) {
+        defaultArray.push(i);
+      }
+      return defaultArray;
+    })();
+  }
+}
+
 class particle {
   constructor(){
     this.x = 0.01 + (userOptions.variance * Math.random()); 
@@ -263,6 +327,7 @@ class particle {
     this.history = [];
     this.col = random_rgba();
     this.timeDelta = Date.now();
+    this.secColor = false;
   }
 }
   
@@ -273,12 +338,9 @@ class options {
     this.rainbow = [255, 0, 0];
     this.variance = 0.5;
     this.attractor = "Lorenz";
+    this.secondaryParts = [];
   }
 }
-
-const Lorenz = [10, 28, 8/3];
-const TSUCS1 = [40, 0.833, 0.5, 0.65, 20];
-const Popcorn2 = [0.05, 3];
 
 var userOptions = new options();
 
@@ -287,7 +349,24 @@ for (var i = 0; i < 100; i++){
   particles.push(new particle());
 }
 
-mixCount = 0;
+var simSpecs = [];
+for (var i = 0; i < supportedSims.length; i++){
+  simSpecs.push(new sim(supportedSims[i][0], supportedSims[i][1]))
+}
+
+function resetSim(){
+  for (var sim of supportedSims){
+    for (var target of simSpecs){
+      if(target.name === sim[0]){
+        for (var i = 0; i < sim[1].length; i++){
+          sim[1][i] = target.constDefault[i];
+        }
+      }
+    }
+  }
+}
+
+var mixCount = 0;
 function updateParticles(){
   for (var p of particles){
     switch (userOptions.attractor) {
@@ -324,7 +403,7 @@ function updateParticles(){
         }
         else {
           var tmpx = p.x;
-          var tmpy = p.y
+          var tmpy = p.y;
           p.x = tmpx - (Popcorn2[0] * Math.sin(tmpy + Math.tan(Popcorn2[1] * tmpy)) * 2);
           p.y = tmpy - (Popcorn2[0] * Math.sin(tmpx + Math.tan(Popcorn2[1] * tmpx)) * 2);
         }
@@ -341,7 +420,7 @@ function updateParticles(){
     switch (userOptions.style) {
       case "line":
         ctx.strokeStyle = userOptions.color === "rainbow" ? colorCycle()
-                          : userOptions.color === "ppcol" ? p.col : userOptions.color;
+                          : userOptions.color === "ppcol" ? p.col : p.secColor === false ? userOptions.color : colorDropDown[1].value;
         ctx.lineWidth = 2;
         ctx.fillStyle = p.col;
         ctx.beginPath();
@@ -354,7 +433,7 @@ function updateParticles(){
         break;
       default:
         ctx.fillStyle = userOptions.color === "rainbow" ? colorCycle()
-                          : userOptions.color === "ppcol" ? p.col : userOptions.color;
+                          : userOptions.color === "ppcol" ? p.col : p.secColor === false ? userOptions.color : colorDropDown[1].value;
         for (var hp of p.history){
           //console.log(p.history[hp]);
           ctx.fillRect(Math.floor(canvas.width / 2 + (hp[0] * 10)), Math.floor(canvas.height / 2 + (hp[1] * 10)), 2, 2);

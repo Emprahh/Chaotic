@@ -5,7 +5,7 @@
   background-color: rgb(70, 70, 70);
   opacity: 80%;
   height: 100vh;
-  width: 20vw;
+  width: 23vw;
   z-index: 1;
   border-radius: 5px;
 
@@ -23,6 +23,26 @@ label {
 
 select{
   display: inline;
+}
+
+#colorstyle select {
+  position: relative;
+  left: 3%;
+}
+
+#secondaryParticles {
+  width: 15%;
+  margin-left: 5%;
+}
+
+#constants fieldset input {
+  justify-content: center;
+  text-align: center;
+}
+
+#constants fieldset .slider {
+  width: 100%;
+  margin-top: 5%;
 }
 
 
