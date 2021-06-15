@@ -38,6 +38,7 @@
   position: absolute;
   visibility: hidden;
   opacity: 40%;
+  z-index: 1;
 }
 
 #showSidebar:hover {
