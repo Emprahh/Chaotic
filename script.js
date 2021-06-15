@@ -1,7 +1,8 @@
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 var colForm = document.getElementsByName("colorOption");
-const input = document.querySelector('input');
+var input = document.querySelector('input');
+var sidebar = document.getElementById('sidebar');
 var styleOptions = document.forms['styleOption'].elements['style'];
 var colorOptions = document.forms['colorOption'].elements['style'];
 var colorDropDown = document.forms['colorOption'].elements['rgbColors'];
@@ -10,12 +11,18 @@ var simDropDown = document.getElementById('simType');
 var secondaryPartsNum = document.getElementById('secondaryParticles');
 var sliderCont = document.getElementById('slideContainer');
 var resetButton = document.getElementById('resetSim');
+var zoomIn = document.getElementById('zoomIn');
+var zoomout = document.getElementById('zoomOut');
+var hideBtn = document.getElementById('hideSidebar');
+var showBtn = document.getElementById('showSidebar');
 
 const Lorenz = [10, 28, 8/3];
 const TSUCS1 = [40, 0.833, 0.5, 0.65, 20];
 const Popcorn2 = [0.05, 3];
 const MIX = [10, 28, 8/3];
-const supportedSims = [["Lorenz", Lorenz], ["TSUCS1", TSUCS1], ["Popcorn2", Popcorn2], ["Mix", MIX]];
+//const Aizawa = [0.95, 0.7, 0.6, 3.5, 0.25, 0.1];
+const FourWings = [-14, 5, 1, 16, -43, 1];
+const supportedSims = [["Lorenz", Lorenz], ["TSUCS1", TSUCS1], ["Popcorn2", Popcorn2], ["Mix", MIX], ["fourWings", FourWings]];
 
 const CSS_COLOR_NAMES = [
   "AliceBlue",
@@ -168,6 +175,50 @@ const CSS_COLOR_NAMES = [
   "YellowGreen",
 ];
 
+zoomIn.onclick = function() {userOptions.zoomLevel++;}
+zoomOut.onclick = function() {userOptions.zoomLevel = userOptions.zoomLevel > 1 ? userOptions.zoomLevel - 1 : 1 ;}
+hideBtn.onclick = function() {
+  sidebar.style.visibility = 'hidden';
+  showBtn.style.visibility = 'visible';
+}
+showBtn.onclick = function() {
+  sidebar.style.visibility = 'visible';
+  showBtn.style.visibility = 'hidden';
+}
+document.getElementById('xyPlane').onclick = function(){
+  userOptions.plane = [0, 1];
+}
+document.getElementById('xzPlane').onclick = function(){
+  userOptions.plane = [0, 2];
+}
+document.getElementById('yzPlane').onclick = function(){
+  userOptions.plane = [1, 2];
+}
+
+var drag = false;
+var mouseStartX = 0;
+var mouseStartY = 0;
+
+canvas.addEventListener('mousedown', function() { 
+  drag = true; 
+  mouseStartX = event.clientX - ctx.canvas.offsetLeft + userOptions.pan[0]; 
+  mouseStartY = event.clientY - ctx.canvas.offsetTop + userOptions.pan[1];
+});
+canvas.addEventListener('mousemove', function(){
+  if (drag === true){
+    var x = event.clientX - ctx.canvas.offsetLeft;
+    var y = event.clientY - ctx.canvas.offsetTop;
+    userOptions.pan = [mouseStartX - x, mouseStartY - y];
+  }
+});
+function stopDrag(){
+    drag = false;
+    mouseStartX = 0;
+    mouseStartY = 0;
+}
+canvas.addEventListener('mouseup', function() {stopDrag()});
+canvas.addEventListener('mouseleave', function() {stopDrag()});
+
 for (var i = 0; i < styleOptions.length; i++) {
     styleOptions[i].onclick = function() {
         userOptions.style = this.id;
@@ -180,7 +231,7 @@ for (var i = 0; i < CSS_COLOR_NAMES.length; i++) {
 }
 
 colorDropDown[0].onchange = function(){
-  if (userOptions.color !== "rainbow" && userOptions.color !== "ppcol") {
+  if (userOptions.color !== "rainbow" && userOptions.color !== "ppcol" && userOptions.color !== "velocityPaint") {
     userOptions.color = colorDropDown[0].value;
   }
 }
@@ -224,7 +275,7 @@ resetButton.addEventListener('click', function(){
 
 for (var i = 0; i < colorOptions.length; i++) {
     colorOptions[i].onclick = function() {
-        if (this.id === "rainbow" || this.id === "ppcol") {
+        if (this.id === "rainbow" || this.id === "ppcol" || this.id === "velocityPaint") {
           userOptions.color = this.id;
         }
         else {
@@ -264,7 +315,7 @@ secondaryPartsNum.addEventListener('click', function(){
   }
 });
 
-canvas.width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+canvas.width = window.innerWidth  || document.documentElement.clientWidth || document.body.clientWidth;
 canvas.height = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
 
 function random_rgba() {
@@ -305,6 +356,19 @@ function colorCycle(){
   return 'rgb(' + r + ', ' + g + ', ' + b + ")";
 }
 
+function velocityCol(velo){
+  var red = 255 * (velo / maxVelocity);
+  var blue = 255 - red;
+  return 'rgb(' + red + ', ' + 0 + ', ' + blue + ")";
+}
+
+/* function velocityCool(col, age){
+  var rgb = col.substring(4, col.length-1).replace(/ /g, '').split(',');
+  var red = rgb[0] - age;
+  var blue = 255 - red;
+  return 'rgb(' + red + ', ' + 0 + ', ' + blue + ")";
+} */
+
 class sim {
   constructor(name, consts){
     this.name = name;
@@ -328,6 +392,7 @@ class particle {
     this.col = random_rgba();
     this.timeDelta = Date.now();
     this.secColor = false;
+    this.relVelocity = 0;
   }
 }
   
@@ -339,6 +404,9 @@ class options {
     this.variance = 0.5;
     this.attractor = "Lorenz";
     this.secondaryParts = [];
+    this.zoomLevel = 10;
+    this.plane = [0, 1];
+    this.pan = [0, 0];
   }
 }
 
@@ -367,9 +435,29 @@ function resetSim(){
 }
 
 var mixCount = 0;
+var maxVelocity = 0;
 function updateParticles(){
+  maxVelocity = 0;
   for (var p of particles){
     switch (userOptions.attractor) {
+      case "fourWings":
+        var newx = (FourWings[0] * p.x + FourWings[1] * p.y + FourWings[2] * p.y * p.z) * 0.001;
+        var newy = (FourWings[3] * p.y - p.x * p.z) * 0.001;
+        var newz = (FourWings[4] * p.z + FourWings[5] * p.x * p.y) * 0.001;
+        p.x = p.x + newx;
+        p.y = p.y + newy;
+        p.z = p.z + newz;
+        p.relVelocity = Math.abs(newx + newy);
+        break;
+      case "Aizawa":
+        var newx = ((p.z - Aizawa[1]) * p.x - Aizawa[3] * p.y) * 0.005;
+        var newy = (Aizawa[3] * p.x + (p.z - Aizawa[1]) * p.y) * 0.005;
+        var newz = (Aizawa[2] + Aizawa[0] * p.z - Math.pow(p.z, 3) / 3 - (Math.pow(p.x, 2) + Math.pow(p.y, 2)) * (1 + Aizawa[4] * p.z) + Aizawa[5] * p.z * Math.pow(p.x, 3)) * 0.005;
+        p.x = p.x + newx;
+        p.y = p.y + newy;
+        p.z = p.z + newz;
+        p.relVelocity = Math.abs(newx + newy);
+        break;
       case "Lorenz":
         var newx = (Lorenz[0] * (p.y - p.x)) * 0.01;
         var newy =  (p.x * (Lorenz[1] - p.z) - p.y) * 0.01;
@@ -377,6 +465,7 @@ function updateParticles(){
         p.x = p.x + newx;
         p.y = p.y + newy;
         p.z = p.z + newz;
+        p.relVelocity = Math.abs(newx + newy);
         break;
       case "TSUCS1":
         var newx = (TSUCS1[0] * (p.y - p.x) + TSUCS1[2] * p.x * p.z) * 0.001;
@@ -385,10 +474,12 @@ function updateParticles(){
         p.x = p.x + newx;
         p.y = p.y + newy;
         p.z = p.z + newz;
+        p.relVelocity = Math.abs(newx + newy);
         break;
       case "Popcorn2":
         var tmpx = p.x;
         var tmpy = p.y
+        p.relVelocity = Math.abs((Popcorn2[0] * Math.sin(tmpy + Math.tan(Popcorn2[1] * tmpy)) * 2) + (Popcorn2[0] * Math.sin(tmpx + Math.tan(Popcorn2[1] * tmpx)) * 2));
         p.x = tmpx - (Popcorn2[0] * Math.sin(tmpy + Math.tan(Popcorn2[1] * tmpy)) * 2);
         p.y = tmpy - (Popcorn2[0] * Math.sin(tmpx + Math.tan(Popcorn2[1] * tmpx)) * 2);
         break;
@@ -400,14 +491,18 @@ function updateParticles(){
           p.x = p.x + newx;
           p.y = p.y + newy;
           p.z = p.z + newz;
+          p.relVelocity = Math.abs(newx + newy);
         }
         else {
           var tmpx = p.x;
           var tmpy = p.y;
-          p.x = tmpx - (Popcorn2[0] * Math.sin(tmpy + Math.tan(Popcorn2[1] * tmpy)) * 2);
+          p.relVelocity = Math.abs((Popcorn2[0] * Math.sin(tmpy + Math.tan(Popcorn2[1] * tmpy)) * 2) + (Popcorn2[0] * Math.sin(tmpx + Math.tan(Popcorn2[1] * tmpx)) * 2));
           p.y = tmpy - (Popcorn2[0] * Math.sin(tmpx + Math.tan(Popcorn2[1] * tmpx)) * 2);
         }
         break;
+    }
+    if (p.relVelocity > maxVelocity){
+      maxVelocity = p.relVelocity;
     }
     if (p.history.length < 100){
       p.history.push([p.x, p.y, p.z]);
@@ -416,27 +511,34 @@ function updateParticles(){
       p.history.shift();
       p.history.push([p.x, p.y, p.z]);
     }
+  }
+  for (var p of particles){
     mixCount += Math.floor((Math.random() * 2));
     switch (userOptions.style) {
       case "line":
         ctx.strokeStyle = userOptions.color === "rainbow" ? colorCycle()
-                          : userOptions.color === "ppcol" ? p.col : p.secColor === false ? userOptions.color : colorDropDown[1].value;
+                          : userOptions.color === "ppcol" ? p.col 
+                          : userOptions.color === "velocityPaint" ? velocityCol(p.relVelocity)
+                          : p.secColor === false ? userOptions.color 
+                          : colorDropDown[1].value;
         ctx.lineWidth = 2;
         ctx.fillStyle = p.col;
         ctx.beginPath();
-        ctx.moveTo(Math.floor(canvas.width / 2 + (p.history[0][0] * 10)), Math.floor(canvas.height / 2 + (p.history[0][1] * 10)));
+        ctx.moveTo(Math.floor(canvas.width / 2 + userOptions.pan[0] + (p.history[0][userOptions.plane[0]] * userOptions.zoomLevel)), Math.floor(canvas.height / 2 + userOptions.pan[1] + (p.history[0][userOptions.plane[1]] * userOptions.zoomLevel)));
         for (var hp = 1; hp < p.history.length; hp++){
-          //console.log(p.history[hp]);
-          ctx.lineTo(Math.floor(canvas.width / 2 + (p.history[hp][0] * 10)), Math.floor(canvas.height / 2 + (p.history[hp][1] * 10)));
+          ctx.lineTo(Math.floor(canvas.width / 2 + userOptions.pan[0] + (p.history[hp][userOptions.plane[0]] * userOptions.zoomLevel)), Math.floor(canvas.height / 2 + userOptions.pan[1] + (p.history[hp][userOptions.plane[1]] * userOptions.zoomLevel)));
         }
         ctx.stroke();
         break;
       default:
         ctx.fillStyle = userOptions.color === "rainbow" ? colorCycle()
-                          : userOptions.color === "ppcol" ? p.col : p.secColor === false ? userOptions.color : colorDropDown[1].value;
+                        : userOptions.color === "ppcol" ? p.col 
+                        : userOptions.color === "velocityPaint" ? velocityCol(p.relVelocity)
+                        : p.secColor === false ? userOptions.color 
+                        : colorDropDown[1].value;
         for (var hp of p.history){
           //console.log(p.history[hp]);
-          ctx.fillRect(Math.floor(canvas.width / 2 + (hp[0] * 10)), Math.floor(canvas.height / 2 + (hp[1] * 10)), 2, 2);
+          ctx.fillRect(Math.floor(canvas.width / 2 + userOptions.pan[0] + (hp[userOptions.plane[0]] * userOptions.zoomLevel)), Math.floor(canvas.height / 2 + userOptions.pan[1] + (hp[userOptions.plane[1]] * userOptions.zoomLevel)), 2, 2);
         }
         break; 
     }

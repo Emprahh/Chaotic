@@ -7,8 +7,15 @@
     <link href="style.css" rel="stylesheet" type="text/css" />
   </head>
   <body>
+  <button id="showSidebar">></button>
   <div id="wrapper">
+    <button id="zoomIn"><img src="in.png" alt=""></button>
+    <button id="zoomOut"><img src="out.png" alt=""></button>
+    <button id="xyPlane">XY</button>
+    <button id="xzPlane">XZ</button>
+    <button id="yzPlane">YZ</button>
     <div id="sidebar">
+      <button id="hideSidebar">&times;</button>
       <div id="colorstyle">
         <fieldset>
           <legend>Style and Color: </legend>
@@ -21,6 +28,7 @@
             <label>Color: </label><br>
             <label> <input type="radio" id="rainbow" name="style" value="rainbow" checked> Strobe Rainbow</label>
             <label> <input type="radio" id="ppcol" name="style" value="PerParticleColor"> Particle Rainbow</label>
+            <label> <input type="radio" id="velocityPaint" name="style" value="velocityPaint"> Velocity Paint</label>
             </br>
             <label><input type="radio" id="solidCols" name="style" value="colorChoice"> RGB Color <br><label class="rgbOptions"> Main Color: </label><select name="rgbColors" id="rgbColors">
             </select> </label></br>

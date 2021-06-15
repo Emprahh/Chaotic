@@ -4,11 +4,48 @@
   flex-direction: column;
   background-color: rgb(70, 70, 70);
   opacity: 80%;
-  height: 100vh;
+  height: 95vh;
   width: 23vw;
   z-index: 1;
   border-radius: 5px;
+}
 
+#zoomIn,
+#zoomOut,
+#xyPlane,
+#xzPlane,
+#yzPlane  {
+  z-index: 1;
+  align-self: flex-end;
+  opacity: 0.4;
+}
+
+#zoomIn:hover,
+#zoomOut:hover,
+#xyPlane:hover,
+#xzPlane:hover,
+#yzPlane:hover {
+  opacity: 1;
+}
+
+
+#hideSidebar {
+  align-self: flex-end;
+  opacity: 40%;
+}
+
+#showSidebar {
+  position: absolute;
+  visibility: hidden;
+  opacity: 40%;
+}
+
+#showSidebar:hover {
+  opacity: 100%;
+}
+
+#hideSidebar:hover {
+  opacity: 100%;
 }
 
 #sidebar div {
@@ -45,11 +82,17 @@ select{
   margin-top: 5%;
 }
 
+canvas{
+  position: absolute;
+}
 
 body {
   background-color: black;
+  overflow: hidden;
 }
 
 #wrapper {
   display: flex;
+  flex-direction: column;
 }
+
