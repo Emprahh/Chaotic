@@ -9,4 +9,4 @@ Visualizer for Chaotic Attractors.
 -Change drawing style and coloring</br>
 
 
-Live page - https://emprahh.github.io/Chaotic-Attractors/
+Live page - https://shaunrly.github.io/Chaotic-Attractors/
